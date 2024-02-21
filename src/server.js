@@ -1,9 +1,30 @@
 const http = require('http'); // http module
 const url = require('url'); // url module
+const query = require('querystring');
 const htmlHandler = require('./htmlResponses.js');
 const jsonHandler = require('./jsonResponses.js');
 
 const port = process.env.PORT || process.env.NODE_PORT || 3000;
+
+const parseBody = (request, response, handler) => {
+  const body = [];
+
+  request.on('error', (err) => {
+    console.dir(err);
+    response.statusCode = 400;
+    response.end();
+  });
+
+  request.on('data', (chunk) => {
+    body.push(chunk);
+  });
+
+  request.on('end', () => {
+    const bodyString = Buffer.concat(body).toString();
+    const bodyParams = query.parse(bodyString);
+    handler(request, response, bodyParams);
+  });
+};
 
 // here we create a object to route our requests to the proper
 // handlers. the top level object is indexed by the request
@@ -17,7 +38,7 @@ const urlStruct = {
     '/': htmlHandler.getIndex,
     '/style.css': htmlHandler.getCSS,
     '/getUsers': jsonHandler.getUsers,
-    // '/addUser': jsonHandler.addUser,
+    '/notReal': jsonHandler.notFound,
     notFound: jsonHandler.notFound,
   },
   HEAD: {
@@ -25,7 +46,7 @@ const urlStruct = {
     notFound: jsonHandler.notFoundMeta,
   },
   POST: {
-    '/addUser': jsonHandler.addUser,
+    '/addUser': (req, res) => parseBody(req, res, jsonHandler.addUser),
   },
 };
 
